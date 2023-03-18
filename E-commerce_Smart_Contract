@@ -1,0 +1,60 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.17;
+
+
+contract eCommerce {
+
+
+     struct Product {
+          string title;
+          string desc;
+          address payable seller;
+          uint256 productID;
+          uint256 price;
+          address buyer;
+          bool delivered;
+
+     }
+
+     uint256 counter = 1;
+     Product[] public products;
+
+     event registerevent(string indexed title , uint256 indexed productID  , address indexed seller);
+     event buyEvent(uint256 indexed productID , address indexed buyer , uint256 indexed price);
+     event deliveredEvent(address indexed buyer , bool indexed delivered , uint256 indexed productID);
+
+     function registerProduct(string memory _title, string memory _desc, uint256 _price ) public {
+            require(_price > 0 , "Price should be greater than zero");
+            Product memory tempProduct;
+            tempProduct.title = _title;
+            tempProduct.desc = _desc;
+            tempProduct.price = _price;
+            tempProduct.seller = payable(msg.sender);
+            tempProduct.productID = counter++;
+           
+            products.push(tempProduct);
+            emit registerevent(_title , counter - 1 , msg.sender);
+}
+
+    function buy(uint256 _productID) payable public {
+        require(products[_productID - 1].seller != msg.sender, "Seller cannot but the product");
+        require(products[_productID - 1].price == msg.value , "Pay the exact amout of the product");
+        require(products[_productID - 1].delivered == false , "Product already sold");
+
+        products[_productID - 1].buyer = msg.sender;
+        emit buyEvent(_productID , msg.sender , products[_productID - 1].price);
+
+          
+    }
+
+
+    function delivered(uint _productID) public {
+           require(products[_productID - 1].buyer == msg.sender , "Only buyer can specify wheter delivered or not.");
+
+           products[_productID].delivered = true;
+           products[_productID - 1].seller.transfer(products[_productID - 1].price);
+
+           emit deliveredEvent(products[_productID - 1].buyer , true , _productID);
+    }
+
+}
