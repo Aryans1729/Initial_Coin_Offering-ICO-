@@ -1,0 +1,113 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.9;
+
+import "@openzeppelin/contracts@4.8.1/token/ERC20/ERC20.sol";
+
+contract KaliCoin is ERC20 {
+    constructor() ERC20("People Coin", "PC") {}
+}
+
+
+contract ICO is KaliCoin {
+
+      address public manager;
+      address payable public depositer;
+      uint256 public startTime;
+      uint256 public endTime;
+      uint256 public tradeTime;
+      uint256 public fundRaised;
+      uint256 public cap;
+      uint256 public minAmount;
+      uint256 public maxAmount;
+      uint256 public tokenPrice;
+
+      enum State {beforeStart , running , halted , afterEnd}
+
+      State public state;
+
+      event invested(address indexed invester, uint256 indexed AmountInvested , uint256 indexed Tokens);
+
+      constructor(address payable depositer_ , uint256 tokenprice_){
+     
+                     manager = msg.sender;
+                     depositer = depositer_;
+                     startTime = block.timestamp;
+                     endTime = startTime + 3600;
+                     tradeTime = endTime + 3600;
+                     cap = 100 ether;
+                     minAmount = 1 ether;
+                     maxAmount = 5 ether;
+                     tokenPrice = tokenprice_;
+                     state = State.running;
+                    _balances[manager] = _totalSupply;
+      }
+
+
+      modifier onlyowner {
+          require(msg.sender == manager , "Only manager can access");
+          _;
+      }
+
+      function halt() public onlyowner {
+           state = State.halted;
+      }
+
+
+      function getState() public view returns(State){
+              return state;
+      }
+
+
+      function invest() payable public {
+            require(getState() == State.running , "ICO is halted by the manager");
+            require(msg.value >= minAmount && msg.value <= maxAmount , "Invalid investement");
+
+            fundRaised += msg.value;
+            require(fundRaised <= cap , "fund already raised");
+ 
+            uint256 tokens = msg.value / tokenPrice;
+
+            _balances[manager] -= tokens;
+            _balances[msg.sender] += tokens;
+
+            depositer.transfer(msg.value);
+
+            emit invested(msg.sender , msg.value , tokens);
+         } 
+
+
+
+    function burn() public onlyowner {
+           require(getState() == State.afterEnd , "Investement is going on.");
+
+           _balances[manager] = 0;
+             
+    }
+
+
+    function transfer(address _to , uint256 _amount) public override returns(bool) {
+                   require(block.timestamp > tradeTime , "You cannot transfer now.");
+                   super.transfer(_to , _amount);
+
+                   return true;
+    }
+
+
+    function transferFrom(address _from , address _to , uint _amount) public override returns(bool) {
+               require(block.timestamp > tradeTime  , "You cannot transfer now");
+               super.transferFrom(_from , _to , _amount);
+               return true;
+    }
+
+    receive() external payable {
+          invest();
+    }
+
+
+
+
+
+
+
+
+}
